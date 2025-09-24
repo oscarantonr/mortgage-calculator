@@ -7,7 +7,9 @@ const app = express();
 const PORT = 3000;
 
 // Habilitar CORS para permitir peticiones desde Angular
-app.use(cors());
+app.use(cors({
+  origin: 'https://mortgage-simulate.netlify.app/'
+}));
 
 // Función para realizar el scraping del Euríbor
 async function scrapeEuribor() {
