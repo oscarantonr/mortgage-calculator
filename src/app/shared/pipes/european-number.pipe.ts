@@ -25,10 +25,31 @@ export class EuropeanNumberPipe implements PipeTransform {
       return '';
     }
 
-    // Formatear con Intl usando locale 'es-ES' para formato europeo
-    return new Intl.NumberFormat('es-ES', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    }).format(numValue);
+    // Formatear manualmente para garantizar separadores en números de 4 o más dígitos
+    return this.formatWithThousandSeparator(numValue, decimals);
+  }
+
+  /**
+   * Formatea un número con separadores de millar (punto) y separador decimal (coma)
+   * Asegura que se muestren para números de 4 o más dígitos
+   */
+  private formatWithThousandSeparator(value: number, decimals: number): string {
+    // Formateamos a string con la cantidad correcta de decimales
+    const fixed = value.toFixed(decimals);
+    const parts = fixed.split('.');
+    const integerPart = parts[0];
+    const decimalPart = parts.length > 1 ? ',' + parts[1] : '';
+
+    // Aplicamos separadores de millar (punto) manualmente
+    let formattedInteger = '';
+    for (let i = 0; i < integerPart.length; i++) {
+      // Agregamos un punto cada tres dígitos empezando desde el final
+      if (i > 0 && (integerPart.length - i) % 3 === 0) {
+        formattedInteger += '.';
+      }
+      formattedInteger += integerPart.charAt(i);
+    }
+
+    return formattedInteger + decimalPart;
   }
 }

@@ -22,6 +22,23 @@
         </div>
 
         <div class="form-group">
+          <label for="earlyRepayment">Amortización anticipada (opcional)</label>
+          <div class="input-group">
+            <input 
+              type="text" 
+              id="earlyRepayment" 
+              formControlName="earlyRepayment" 
+              class="form-control" 
+              placeholder="Ej: 10.000"
+              appEuropeanNumberInput>
+            <span class="input-addon">€</span>
+          </div>
+          <div class="form-hint">
+            Cantidad que deseas amortizar anticipadamente
+          </div>
+        </div>
+
+        <div class="form-group">
           <label>Tipo de interés</label>
           <div class="radio-group">
             <div *ngFor="let type of interestTypes" class="radio-option">
@@ -114,9 +131,10 @@
     <!-- Columna derecha: resumen de resultados -->
     <div class="results-summary-container" *ngIf="showResults">
       <div class="results-card summary-card">
-        <h2>Resumen</h2>
+        <h2 *ngIf="!mortgageForm.get('earlyRepayment')?.value">Resumen</h2>
+        <h2 *ngIf="mortgageForm.get('earlyRepayment')?.value">Opciones de amortización</h2>
         
-        <div class="result-summary">
+        <div class="result-summary" *ngIf="!mortgageForm.get('earlyRepayment')?.value">
           <div class="result-item">
             <h3>Cuota mensual</h3>
             <p class="result-value">{{ monthlyPayment | europeanNumber }} €</p>
@@ -144,6 +162,92 @@
                 ({{ mortgageForm.get('term')?.value }} meses)
               </span>
             </p>
+          </div>
+        </div>
+        
+        <!-- Resultados de amortización anticipada -->
+        <div class="early-repayment-results" *ngIf="mortgageForm.get('earlyRepayment')?.value">
+          <h3 class="section-title">Comparativa de opciones</h3>
+          
+          <!-- Opción 1: Reducir plazo -->
+          <div class="amortization-option">
+            <div class="option-header">
+              <h4>Reduciendo plazo ahorras:</h4>
+              <span class="savings">{{ earlyRepaymentResults.reducingTerm.savings | europeanNumber }} €</span>
+            </div>
+            
+            <div class="option-details">
+              <div class="detail-item">
+                <span class="detail-label">Cuota:</span>
+                <span class="detail-value">{{ earlyRepaymentResults.reducingTerm.monthlyPayment | europeanNumber }} € <small>(se mantiene)</small></span>
+              </div>
+              
+              <div class="detail-item">
+                <span class="detail-label">Plazo actual:</span>
+                <span class="detail-value">
+                  {{ earlyRepaymentResults.reducingTerm.originalTerm.years }} años
+                  <span *ngIf="earlyRepaymentResults.reducingTerm.originalTerm.months > 0">
+                    y {{ earlyRepaymentResults.reducingTerm.originalTerm.months }} meses
+                  </span>
+                </span>
+              </div>
+              
+              <div class="detail-item">
+                <span class="detail-label">Reducción del plazo:</span>
+                <span class="detail-value highlight">
+                  {{ earlyRepaymentResults.reducingTerm.termReduction.years }} años
+                  <span *ngIf="earlyRepaymentResults.reducingTerm.termReduction.months > 0">
+                    y {{ earlyRepaymentResults.reducingTerm.termReduction.months }} meses
+                  </span>
+                </span>
+              </div>
+              
+              <div class="detail-item">
+                <span class="detail-label">Nuevo plazo:</span>
+                <span class="detail-value">
+                  {{ earlyRepaymentResults.reducingTerm.newTerm.years }} años
+                  <span *ngIf="earlyRepaymentResults.reducingTerm.newTerm.months > 0">
+                    y {{ earlyRepaymentResults.reducingTerm.newTerm.months }} meses
+                  </span>
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Opción 2: Reducir cuota -->
+          <div class="amortization-option">
+            <div class="option-header">
+              <h4>Reduciendo cuota ahorras:</h4>
+              <span class="savings">{{ earlyRepaymentResults.reducingPayment.savings | europeanNumber }} €</span>
+            </div>
+            
+            <div class="option-details">
+              <div class="detail-item">
+                <span class="detail-label">Plazo:</span>
+                <span class="detail-value">
+                  {{ earlyRepaymentResults.reducingPayment.term.years }} años
+                  <span *ngIf="earlyRepaymentResults.reducingPayment.term.months > 0">
+                    y {{ earlyRepaymentResults.reducingPayment.term.months }} meses
+                  </span>
+                  <small>(se mantiene)</small>
+                </span>
+              </div>
+              
+              <div class="detail-item">
+                <span class="detail-label">Cuota actual:</span>
+                <span class="detail-value">{{ earlyRepaymentResults.reducingPayment.originalPayment | europeanNumber }} €</span>
+              </div>
+              
+              <div class="detail-item">
+                <span class="detail-label">Reducción de cuota:</span>
+                <span class="detail-value highlight">{{ earlyRepaymentResults.reducingPayment.paymentReduction | europeanNumber }} €</span>
+              </div>
+              
+              <div class="detail-item">
+                <span class="detail-label">Nueva cuota:</span>
+                <span class="detail-value">{{ earlyRepaymentResults.reducingPayment.newPayment | europeanNumber }} €</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>

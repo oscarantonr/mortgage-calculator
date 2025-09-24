@@ -27,10 +27,9 @@ export class EuropeanNumberInputDirective {
       this.control.control?.setValue(numValue, { emitEvent: false });
 
       // Formatear el valor para mostrar con separadores de miles
-      const formattedValue = new Intl.NumberFormat('es-ES', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(numValue);
+      // Creamos una función personalizada para garantizar que se muestren los separadores
+      // para números de 4 o más dígitos
+      const formattedValue = this.formatWithThousandSeparator(numValue);
 
       // Actualizar el valor mostrado en el input sin disparar eventos
       // para evitar un bucle infinito
@@ -43,11 +42,7 @@ export class EuropeanNumberInputDirective {
     const value = this.control.value;
     if (value !== null && value !== undefined) {
       // Al perder el foco, asegurarse de que el formato es correcto
-      const formattedValue = new Intl.NumberFormat('es-ES', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(value);
-
+      const formattedValue = this.formatWithThousandSeparator(value);
       this.el.nativeElement.value = formattedValue;
     }
   }
@@ -59,5 +54,28 @@ export class EuropeanNumberInputDirective {
     // if (value !== null && value !== undefined) {
     //   this.el.nativeElement.value = value;
     // }
+  }
+
+  /**
+   * Formatea un número con separadores de millar (punto)
+   * Asegura que se muestren para números de 4 o más dígitos
+   */
+  private formatWithThousandSeparator(value: number): string {
+    const valueString = value.toString();
+    const parts = valueString.split('.');
+    const integerPart = parts[0];
+    const decimalPart = parts.length > 1 ? ',' + parts[1] : '';
+
+    // Aplicamos separadores de millar (punto) manualmente
+    let formattedInteger = '';
+    for (let i = 0; i < integerPart.length; i++) {
+      // Agregamos un punto cada tres dígitos empezando desde el final
+      if (i > 0 && (integerPart.length - i) % 3 === 0) {
+        formattedInteger += '.';
+      }
+      formattedInteger += integerPart.charAt(i);
+    }
+
+    return formattedInteger + decimalPart;
   }
 }

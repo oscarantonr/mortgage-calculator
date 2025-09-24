@@ -17,6 +17,24 @@ export class MortgageCalculatorComponent implements OnInit {
   totalAmount = 0;
   amortizationSchedule: any[] = [];
 
+  // Variables para los resultados de amortización anticipada
+  earlyRepaymentResults = {
+    reducingTerm: {
+      savings: 0,
+      monthlyPayment: 0,
+      originalTerm: { years: 0, months: 0 },
+      termReduction: { years: 0, months: 0 },
+      newTerm: { years: 0, months: 0 },
+    },
+    reducingPayment: {
+      savings: 0,
+      term: { years: 0, months: 0 },
+      originalPayment: 0,
+      paymentReduction: 0,
+      newPayment: 0,
+    },
+  };
+
   interestTypes = [
     { value: 'fixed', label: 'Fijo' },
     { value: 'variable', label: 'Variable (Euríbor + Diferencial)' },
@@ -30,6 +48,7 @@ export class MortgageCalculatorComponent implements OnInit {
   constructor(private fb: FormBuilder) {
     this.mortgageForm = this.fb.group({
       loanAmount: ['150.000', [Validators.required, Validators.min(1)]],
+      earlyRepayment: [''], // Nuevo campo para amortización anticipada (opcional)
       interestType: ['fixed', Validators.required],
       interestRate: ['3', [Validators.required, Validators.min(0.1)]],
       differential: ['1', [Validators.required, Validators.min(0.1)]],
@@ -129,6 +148,14 @@ export class MortgageCalculatorComponent implements OnInit {
         loanAmount: parseFloat(
           formValue.loanAmount?.toString().replace(/\./g, '').replace(',', '.')
         ),
+        earlyRepayment: formValue.earlyRepayment
+          ? parseFloat(
+              formValue.earlyRepayment
+                .toString()
+                .replace(/\./g, '')
+                .replace(',', '.')
+            )
+          : 0,
         interestRate: parseFloat(
           formValue.interestRate?.toString().replace(',', '.')
         ),
@@ -161,6 +188,16 @@ export class MortgageCalculatorComponent implements OnInit {
 
       this.totalAmount = this.monthlyPayment * payments;
       this.totalInterest = this.totalAmount - principal;
+
+      // Calcular opciones de amortización anticipada si hay un valor
+      if (data.earlyRepayment > 0) {
+        this.calculateEarlyRepaymentOptions(
+          data.earlyRepayment,
+          principal,
+          interestRate,
+          payments
+        );
+      }
 
       this.showResults = true;
     }
@@ -199,9 +236,86 @@ export class MortgageCalculatorComponent implements OnInit {
     }
   }
 
+  /**
+   * Calcula las dos opciones de amortización anticipada:
+   * 1. Reducción de plazo (misma cuota, menos tiempo)
+   * 2. Reducción de cuota (mismo plazo, menor cuota mensual)
+   */
+  calculateEarlyRepaymentOptions(
+    earlyRepayment: number,
+    principal: number,
+    monthlyRate: number,
+    totalPayments: number
+  ) {
+    // Opción 1: Reducción de plazo (misma cuota mensual)
+    // Al hacer un pago anticipado, reducimos el capital pendiente
+    const newPrincipal = principal - earlyRepayment;
+
+    // La cuota mensual se mantiene igual
+    const monthlyPayment = this.monthlyPayment;
+
+    // Calculamos el nuevo plazo: P = ln(c / (c - i*B)) / ln(1+i)
+    // Donde c = cuota mensual, i = interés mensual, B = capital pendiente
+    const newPayments = Math.ceil(
+      Math.log(monthlyPayment / (monthlyPayment - monthlyRate * newPrincipal)) /
+        Math.log(1 + monthlyRate)
+    );
+
+    // Calcular ahorro total
+    const originalTotalPayment = monthlyPayment * totalPayments;
+    const newTotalPayment = monthlyPayment * newPayments + earlyRepayment;
+    const savingsReducingTerm = originalTotalPayment - newTotalPayment;
+
+    // Calcular reducción de plazo en años y meses
+    const paymentReduction = totalPayments - newPayments;
+    const yearsReduction = Math.floor(paymentReduction / 12);
+    const monthsReduction = paymentReduction % 12;
+
+    // Calcular plazo original en años y meses
+    const originalYears = Math.floor(totalPayments / 12);
+    const originalMonths = totalPayments % 12;
+
+    // Calcular nuevo plazo en años y meses
+    const newYears = Math.floor(newPayments / 12);
+    const newMonths = newPayments % 12;
+
+    // Actualizar resultados para reducción de plazo
+    this.earlyRepaymentResults.reducingTerm = {
+      savings: savingsReducingTerm,
+      monthlyPayment: monthlyPayment,
+      originalTerm: { years: originalYears, months: originalMonths },
+      termReduction: { years: yearsReduction, months: monthsReduction },
+      newTerm: { years: newYears, months: newMonths },
+    };
+
+    // Opción 2: Reducción de cuota (mismo plazo)
+    // Calculamos la nueva cuota mensual con el nuevo capital pero manteniendo el plazo
+    const newMonthlyPayment =
+      (newPrincipal * monthlyRate * Math.pow(1 + monthlyRate, totalPayments)) /
+      (Math.pow(1 + monthlyRate, totalPayments) - 1);
+
+    // Calcular ahorro total
+    const originalTotalPayment2 = monthlyPayment * totalPayments;
+    const newTotalPayment2 = newMonthlyPayment * totalPayments + earlyRepayment;
+    const savingsReducingPayment = originalTotalPayment2 - newTotalPayment2;
+
+    // Reducción mensual de la cuota
+    const paymentDifference = monthlyPayment - newMonthlyPayment;
+
+    // Actualizar resultados para reducción de cuota
+    this.earlyRepaymentResults.reducingPayment = {
+      savings: savingsReducingPayment,
+      term: { years: originalYears, months: originalMonths }, // El plazo se mantiene igual
+      originalPayment: monthlyPayment,
+      paymentReduction: paymentDifference,
+      newPayment: newMonthlyPayment,
+    };
+  }
+
   resetCalculator() {
     this.mortgageForm.reset({
       loanAmount: '150.000',
+      earlyRepayment: '', // Añadimos el campo de amortización anticipada
       interestType: 'fixed',
       interestRate: '3',
       differential: '1',
@@ -212,5 +326,22 @@ export class MortgageCalculatorComponent implements OnInit {
     this.showResults = false;
     this.amortizationSchedule = [];
     this.results = null;
+    // Reiniciamos los resultados de amortización anticipada
+    this.earlyRepaymentResults = {
+      reducingTerm: {
+        savings: 0,
+        monthlyPayment: 0,
+        originalTerm: { years: 0, months: 0 },
+        termReduction: { years: 0, months: 0 },
+        newTerm: { years: 0, months: 0 },
+      },
+      reducingPayment: {
+        savings: 0,
+        term: { years: 0, months: 0 },
+        originalPayment: 0,
+        paymentReduction: 0,
+        newPayment: 0,
+      },
+    };
   }
 }
