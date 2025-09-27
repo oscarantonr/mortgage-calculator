@@ -12,7 +12,9 @@ export interface EuriborData {
   providedIn: 'root',
 })
 export class EuriborScrapingService {
-  private apiUrl = 'https://mortgage-calculator-bxqz.onrender.com';
+  // URL para desarrollo local
+  private apiUrl = 'http://localhost:3000';
+  // En producción: private apiUrl = 'https://mortgage-calculator-bxqz.onrender.com';
 
   constructor(private http: HttpClient) {}
 
