@@ -6,6 +6,11 @@ const cors = require('cors');
 const app = express();
 const PORT = 3000;
 
+// Variables para el sistema de caché
+let euriborCache = null;
+let lastFetchDate = null;
+const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 horas en milisegundos
+
 // Habilitar CORS para permitir peticiones desde Angular
 app.use(cors({
   // Configuración para desarrollo local y producción
@@ -71,16 +76,48 @@ async function scrapeEuribor() {
   }
 }
 
-// Ruta principal - Devuelve directamente los datos del Euríbor
+// Función para verificar si necesitamos actualizar el caché
+function shouldUpdateCache() {
+  // Si no hay caché, debemos actualizar
+  if (!euriborCache || !lastFetchDate) {
+    return true;
+  }
+  
+  const now = new Date();
+  const elapsedTime = now - lastFetchDate;
+  
+  // Comparamos también si cambió la fecha (para actualizaciones a medianoche)
+  const currentDate = now.toISOString().split('T')[0];
+  const cachedDate = lastFetchDate.toISOString().split('T')[0];
+  
+  return elapsedTime > CACHE_DURATION_MS || currentDate !== cachedDate;
+}
+
+// Ruta principal - Devuelve el valor cacheado o realiza un nuevo scraping si es necesario
 app.get('/', async (req, res) => {
   try {
-    const euriborData = await scrapeEuribor();
-    res.json(euriborData);
+    // Comprobamos si necesitamos actualizar el caché
+    if (shouldUpdateCache()) {
+      console.log('Caché expirado o no existente, realizando nuevo scraping...');
+      euriborCache = await scrapeEuribor();
+      lastFetchDate = new Date();
+      console.log(`Caché actualizado: ${JSON.stringify(euriborCache)}`);
+    } else {
+      console.log(`Sirviendo valor desde caché: ${JSON.stringify(euriborCache)}`);
+    }
+    
+    res.json(euriborCache);
   } catch (error) {
-    res.status(500).json({
-      error: 'Error al obtener el valor del Euríbor',
-      message: error.message
-    });
+    // Si hay un error en el scraping pero tenemos caché, devolvemos el valor cacheado
+    if (euriborCache) {
+      console.log('Error al obtener nuevo valor, sirviendo desde caché...');
+      res.json(euriborCache);
+    } else {
+      res.status(500).json({
+        error: 'Error al obtener el valor del Euríbor',
+        message: error.message
+      });
+    }
   }
 });
 
@@ -88,4 +125,5 @@ app.get('/', async (req, res) => {
 // Iniciar el servidor
 app.listen(PORT, () => {
   console.log(`Servidor de scraping ejecutándose en http://localhost:${PORT}`);
+  console.log('Sistema de caché implementado: el valor del Euríbor se actualizará una vez al día');
 });
