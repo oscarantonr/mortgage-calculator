@@ -2,14 +2,19 @@ const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
 const cors = require('cors');
+const cron = require('node-cron');
+const fs = require('fs').promises;
+const path = require('path');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Variables para el sistema de caché
 let euriborCache = null;
 let lastFetchDate = null;
-const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 horas en milisegundos
+
+// Ruta al archivo de caché persistente
+const CACHE_FILE_PATH = path.join(__dirname, 'euribor-cache.json');
 
 // Habilitar CORS para permitir peticiones desde Angular
 app.use(cors({
@@ -76,54 +81,112 @@ async function scrapeEuribor() {
   }
 }
 
-// Función para verificar si necesitamos actualizar el caché
-function shouldUpdateCache() {
-  // Si no hay caché, debemos actualizar
-  if (!euriborCache || !lastFetchDate) {
-    return true;
+// Función para cargar el caché desde el archivo si existe
+async function loadCacheFromDisk() {
+  try {
+    const data = await fs.readFile(CACHE_FILE_PATH, 'utf8');
+    const cacheData = JSON.parse(data);
+    euriborCache = cacheData.cache;
+    lastFetchDate = new Date(cacheData.timestamp);
+    console.log('Caché cargado desde disco:', euriborCache);
+  } catch (error) {
+    console.log('No se encontró caché previo o error al cargar:', error.message);
+    // Si no hay caché, inicializamos como null (se actualizará en la primera llamada)
+    euriborCache = null;
+    lastFetchDate = null;
   }
-  
-  const now = new Date();
-  const elapsedTime = now - lastFetchDate;
-  
-  // Comparamos también si cambió la fecha (para actualizaciones a medianoche)
-  const currentDate = now.toISOString().split('T')[0];
-  const cachedDate = lastFetchDate.toISOString().split('T')[0];
-  
-  return elapsedTime > CACHE_DURATION_MS || currentDate !== cachedDate;
 }
 
-// Ruta principal - Devuelve el valor cacheado o realiza un nuevo scraping si es necesario
+// Función para guardar el caché en el archivo
+async function saveCacheToDisk() {
+  try {
+    const cacheData = {
+      cache: euriborCache,
+      timestamp: lastFetchDate
+    };
+    await fs.writeFile(CACHE_FILE_PATH, JSON.stringify(cacheData, null, 2), 'utf8');
+    console.log('Caché guardado en disco con éxito');
+  } catch (error) {
+    console.error('Error al guardar caché en disco:', error.message);
+  }
+}
+
+// Función para actualizar el caché del Euríbor si el valor ha cambiado
+async function updateEuriborCache() {
+  try {
+    const newEuriborData = await scrapeEuribor();
+    
+    // Si es la primera vez o el valor ha cambiado, actualizamos el caché
+    if (!euriborCache || newEuriborData.value !== euriborCache.value) {
+      console.log(`Valor del Euríbor actualizado: ${euriborCache?.value || 'Sin valor previo'} → ${newEuriborData.value}`);
+      euriborCache = newEuriborData;
+      lastFetchDate = new Date();
+      
+      // Guardamos el nuevo caché en el archivo
+      await saveCacheToDisk();
+      
+      return true; // Indica que hubo actualización
+    } else {
+      console.log(`El valor del Euríbor no ha cambiado (${newEuriborData.value}). No se actualiza el caché.`);
+      
+      // Actualizamos solo la fecha de comprobación
+      lastFetchDate = new Date();
+      await saveCacheToDisk();
+      
+      return false; // No hubo actualización
+    }
+  } catch (error) {
+    console.error('Error al actualizar el caché del Euríbor:', error.message);
+    throw error;
+  }
+}
+
+// Ruta principal - Devuelve el valor cacheado
 app.get('/', async (req, res) => {
   try {
-    // Comprobamos si necesitamos actualizar el caché
-    if (shouldUpdateCache()) {
-      console.log('Caché expirado o no existente, realizando nuevo scraping...');
-      euriborCache = await scrapeEuribor();
-      lastFetchDate = new Date();
-      console.log(`Caché actualizado: ${JSON.stringify(euriborCache)}`);
-    } else {
-      console.log(`Sirviendo valor desde caché: ${JSON.stringify(euriborCache)}`);
+    // Si no hay caché (primera ejecución o error previo), lo obtenemos
+    if (!euriborCache) {
+      await updateEuriborCache();
     }
     
-    res.json(euriborCache);
+    res.json({
+      ...euriborCache,
+      lastChecked: lastFetchDate
+    });
   } catch (error) {
-    // Si hay un error en el scraping pero tenemos caché, devolvemos el valor cacheado
-    if (euriborCache) {
-      console.log('Error al obtener nuevo valor, sirviendo desde caché...');
-      res.json(euriborCache);
-    } else {
-      res.status(500).json({
-        error: 'Error al obtener el valor del Euríbor',
-        message: error.message
-      });
-    }
+    res.status(500).json({
+      error: 'Error al obtener el valor del Euríbor',
+      message: error.message
+    });
   }
 });
 
 
-// Iniciar el servidor
-app.listen(PORT, () => {
-  console.log(`Servidor de scraping ejecutándose en http://localhost:${PORT}`);
-  console.log('Sistema de caché implementado: el valor del Euríbor se actualizará una vez al día');
+// Cargamos el caché desde disco al iniciar
+loadCacheFromDisk().then(() => {
+  // Programamos la tarea para que se ejecute todos los días a las 12:00 del mediodía
+  cron.schedule('0 12 * * *', async () => {
+    console.log('Ejecutando tarea programada para actualizar el valor del Euríbor...');
+    try {
+      const updated = await updateEuriborCache();
+      console.log(updated ? 'Valor actualizado con éxito' : 'No fue necesario actualizar el valor');
+    } catch (error) {
+      console.error('Error en la tarea programada:', error.message);
+    }
+  }, {
+    timezone: "Europe/Madrid" // Aseguramos que sea la hora de España
+  });
+
+  // Si no hay caché al iniciar, hacemos un primer scraping
+  if (!euriborCache) {
+    updateEuriborCache()
+      .then(() => console.log('Caché inicial creado'))
+      .catch(err => console.error('Error al crear caché inicial:', err.message));
+  }
+
+  // Iniciamos el servidor
+  app.listen(PORT, () => {
+    console.log(`Servidor de scraping ejecutándose en http://localhost:${PORT}`);
+    console.log('Sistema de actualización programada: todos los días a las 12:00 PM (hora de Madrid)');
+  });
 });
