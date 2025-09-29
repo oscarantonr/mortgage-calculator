@@ -237,7 +237,7 @@ export class MortgageCalculatorComponent implements OnInit {
   }
 
   /**
-   * Calcula las dos opciones de amortización anticipada:
+   * Calcula las dos opciones de amortización anticipada usando tabla de amortización completa:
    * 1. Reducción de plazo (misma cuota, menos tiempo)
    * 2. Reducción de cuota (mismo plazo, menor cuota mensual)
    */
@@ -247,48 +247,86 @@ export class MortgageCalculatorComponent implements OnInit {
     monthlyRate: number,
     totalPayments: number
   ) {
-    // Factor de ajuste para aproximar resultados a las calculadoras comerciales
-    // Este factor considera implícitamente el valor temporal del dinero
-    const adjustmentFactor = 0.4; // ~40% del ahorro bruto
-
-    // Opción 1: Reducción de plazo (misma cuota mensual)
-    // Al hacer un pago anticipado, reducimos el capital pendiente
-    const newPrincipal = principal - earlyRepayment;
-
-    // La cuota mensual se mantiene igual
+    // 1. Calcular cuota mensual original
     const monthlyPayment = this.monthlyPayment;
 
-    // Calculamos el nuevo plazo: P = ln(c / (c - i*B)) / ln(1+i)
-    // Donde c = cuota mensual, i = interés mensual, B = capital pendiente
-    const newPayments = Math.ceil(
-      Math.log(monthlyPayment / (monthlyPayment - monthlyRate * newPrincipal)) /
-        Math.log(1 + monthlyRate)
+    // 2. Generar tabla de amortización original (sin amortización anticipada)
+    const originalTable = this.generateAmortizationTable(
+      principal,
+      monthlyRate,
+      totalPayments,
+      monthlyPayment
+    );
+    const originalInterestTotal = originalTable.totalInterest;
+
+    // 3. Determinar el momento de amortización (asumimos después de 12 meses)
+    const amortizationPoint = 12;
+    const remainingPrincipal =
+      originalTable.schedule[amortizationPoint - 1].remainingPrincipal;
+
+    // 4. Nuevo capital tras amortización anticipada
+    const newPrincipal = remainingPrincipal - earlyRepayment;
+
+    // 5. Escenario A: Reducción de cuota (mismo plazo)
+    const remainingMonths = totalPayments - amortizationPoint;
+    const newMonthlyPayment = this.calculateMonthlyPayment(
+      newPrincipal,
+      monthlyRate,
+      remainingMonths
+    );
+    const reducingPaymentTable = this.generateAmortizationTable(
+      newPrincipal,
+      monthlyRate,
+      remainingMonths,
+      newMonthlyPayment
     );
 
-    // Calcular ahorro total
-    const originalTotalPayment = monthlyPayment * totalPayments;
-    const newTotalPayment = monthlyPayment * newPayments;
+    // 6. Escenario B: Reducción de plazo (misma cuota)
+    const newTotalPayments = this.calculateNewTerm(
+      newPrincipal,
+      monthlyRate,
+      monthlyPayment
+    );
+    const reducingTermTable = this.generateAmortizationTable(
+      newPrincipal,
+      monthlyRate,
+      newTotalPayments,
+      monthlyPayment
+    );
 
-    // Calculamos primero el ahorro bruto (sin considerar la amortización como costo)
-    const grossSavingsReducingTerm = originalTotalPayment - newTotalPayment;
+    // 7. Calcular intereses pagados en los primeros meses (antes de amortización)
+    const interestPaidBefore = originalTable.schedule
+      .slice(0, amortizationPoint)
+      .reduce((sum, month) => sum + month.interest, 0);
 
-    // Ahorro ajustado usando el factor definido al inicio de la función
-    const savingsReducingTerm = grossSavingsReducingTerm * adjustmentFactor;
+    // 8. Calcular ahorro en intereses
+    const totalInterestReducingPayment =
+      interestPaidBefore + reducingPaymentTable.totalInterest;
+    const totalInterestReducingTerm =
+      interestPaidBefore + reducingTermTable.totalInterest;
 
-    // Calcular reducción de plazo en años y meses
-    const paymentReduction = totalPayments - newPayments;
+    // 9. Ahorro en cada escenario
+    const savingsReducingPayment =
+      originalInterestTotal - totalInterestReducingPayment;
+    const savingsReducingTerm =
+      originalInterestTotal - totalInterestReducingTerm;
+
+    // 10. Calcular plazos para mostrar
+    const paymentReduction =
+      totalPayments - (amortizationPoint + newTotalPayments);
     const yearsReduction = Math.floor(paymentReduction / 12);
     const monthsReduction = paymentReduction % 12;
 
-    // Calcular plazo original en años y meses
     const originalYears = Math.floor(totalPayments / 12);
     const originalMonths = totalPayments % 12;
 
-    // Calcular nuevo plazo en años y meses
-    const newYears = Math.floor(newPayments / 12);
-    const newMonths = newPayments % 12;
+    const newYears = Math.floor((amortizationPoint + newTotalPayments) / 12);
+    const newMonths = (amortizationPoint + newTotalPayments) % 12;
 
-    // Actualizar resultados para reducción de plazo
+    // 11. Reducción mensual de la cuota
+    const paymentDifference = monthlyPayment - newMonthlyPayment;
+
+    // 12. Actualizar resultados
     this.earlyRepaymentResults.reducingTerm = {
       savings: savingsReducingTerm,
       monthlyPayment: monthlyPayment,
@@ -297,38 +335,89 @@ export class MortgageCalculatorComponent implements OnInit {
       newTerm: { years: newYears, months: newMonths },
     };
 
-    // Opción 2: Reducción de cuota (mismo plazo)
-    // Calculamos la nueva cuota mensual con el nuevo capital pero manteniendo el plazo
-    const newMonthlyPayment =
-      (newPrincipal * monthlyRate * Math.pow(1 + monthlyRate, totalPayments)) /
-      (Math.pow(1 + monthlyRate, totalPayments) - 1);
-
-    // Calcular ahorro total
-    const originalTotalPayment2 = monthlyPayment * totalPayments;
-    const newTotalPayment2 = newMonthlyPayment * totalPayments;
-
-    // Calculamos primero el ahorro bruto para reducción de cuota
-    const grossSavingsReducingPayment =
-      originalTotalPayment2 - newTotalPayment2;
-
-    // Aplicamos el mismo factor de ajuste que usamos para la reducción de plazo
-    // Ya está declarado arriba, no necesitamos redeclararlo
-
-    // Ahorro ajustado
-    const savingsReducingPayment =
-      grossSavingsReducingPayment * adjustmentFactor;
-
-    // Reducción mensual de la cuota
-    const paymentDifference = monthlyPayment - newMonthlyPayment;
-
-    // Actualizar resultados para reducción de cuota
     this.earlyRepaymentResults.reducingPayment = {
       savings: savingsReducingPayment,
-      term: { years: originalYears, months: originalMonths }, // El plazo se mantiene igual
+      term: { years: originalYears, months: originalMonths },
       originalPayment: monthlyPayment,
       paymentReduction: paymentDifference,
       newPayment: newMonthlyPayment,
     };
+  }
+
+  /**
+   * Genera la tabla de amortización completa para calcular intereses totales
+   */
+  private generateAmortizationTable(
+    principal: number,
+    monthlyRate: number,
+    totalPayments: number,
+    monthlyPayment: number
+  ) {
+    let remainingPrincipal = principal;
+    let totalInterest = 0;
+    const schedule = [];
+
+    for (let month = 1; month <= totalPayments; month++) {
+      // Calcular interés del mes
+      const interest = remainingPrincipal * monthlyRate;
+
+      // Calcular amortización de capital
+      const principalPayment = monthlyPayment - interest;
+
+      // Actualizar capital pendiente
+      remainingPrincipal -= principalPayment;
+
+      // Acumular intereses totales
+      totalInterest += interest;
+
+      // Guardar registro en la tabla
+      schedule.push({
+        month,
+        payment: monthlyPayment,
+        interest,
+        principalPayment,
+        remainingPrincipal: Math.max(0, remainingPrincipal),
+      });
+
+      // Si ya se ha pagado todo el principal, terminar
+      if (remainingPrincipal <= 0) {
+        break;
+      }
+    }
+
+    return {
+      schedule,
+      totalInterest,
+    };
+  }
+
+  /**
+   * Calcula el nuevo plazo con reducción de cuota
+   */
+  private calculateNewTerm(
+    principal: number,
+    monthlyRate: number,
+    monthlyPayment: number
+  ): number {
+    // Usando la fórmula logarítmica para calcular el plazo
+    return Math.ceil(
+      Math.log(monthlyPayment / (monthlyPayment - principal * monthlyRate)) /
+        Math.log(1 + monthlyRate)
+    );
+  }
+
+  /**
+   * Calcula cuota mensual
+   */
+  private calculateMonthlyPayment(
+    principal: number,
+    monthlyRate: number,
+    totalPayments: number
+  ): number {
+    return (
+      (principal * monthlyRate * Math.pow(1 + monthlyRate, totalPayments)) /
+      (Math.pow(1 + monthlyRate, totalPayments) - 1)
+    );
   }
 
   resetCalculator() {
