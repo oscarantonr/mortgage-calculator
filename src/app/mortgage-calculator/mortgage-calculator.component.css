@@ -53,6 +53,13 @@ h2 {
   font-weight: 500;
 }
 
+/* Utilidades */
+.text-muted {
+  color: #718096;
+  font-style: italic;
+  font-size: 14px;
+}
+
 /* Grupos de formulario con mejor espaciado */
 .form-group {
   margin-bottom: 24px;
@@ -202,16 +209,74 @@ label {
 /* Estructura de términos */
 .term-inputs {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 15px;
 }
 
 .term-inputs .input-group {
-  flex: 1;
+  width: 100%;
 }
 
 .term-type {
   min-width: 180px;
+}
+
+/* Texto de ayuda */
+.form-hint {
+  font-size: 13px;
+  color: #718096;
+  margin-top: 8px;
+  font-style: italic;
+}
+
+/* Contenedor del datepicker personalizado */
+.date-input-container {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.date-display {
+  flex: 1;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+
+.date-input-hidden {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+.date-picker-btn {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  background-color: #edf2f7;
+  border: 2px solid #e0e6ed;
+  border-left: none;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+  color: #4a5568;
+  font-weight: 500;
+  font-size: 15px;
+  min-width: 44px;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.date-picker-btn:hover {
+  background-color: #e2e8f0;
+  border-color: #cbd5e0;
+}
+
+.date-picker-btn:active {
+  background-color: #d4d9e2;
 }
 
 /* Selector de plazo (años/meses) */
@@ -524,14 +589,31 @@ tr:hover td {
   }
   
   .term-inputs {
-    flex-direction: column;
-    align-items: flex-start;
+    gap: 10px;
   }
   
   .term-type {
     min-width: auto;
     width: 100%;
-    margin-top: 10px;
+  }
+  
+  .term-type .radio-option {
+    flex: 1;
+    text-align: center;
+  }
+  
+  /* Datepicker responsive */
+  .date-input-container {
+    flex-direction: row;
+  }
+  
+  .date-display {
+    font-size: 16px; /* Mejor legibilidad en móvil */
+  }
+  
+  .date-picker-btn {
+    font-size: 16px; /* Botón del tamaño correcto en móvil */
+    min-width: 50px; /* Un poco más ancho en móvil para mejor toque */
   }
   
   .result-item {
