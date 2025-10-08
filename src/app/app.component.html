@@ -7,7 +7,10 @@
     <div class="card">
       <h2>Euríbor Actual</h2>
       <div *ngIf="loadingScrapingData" class="loading">
-        <p>Cargando datos del Euríbor...</p>
+        <div class="loading-container">
+          <div class="loading-spinner"></div>
+          <p class="loading-message">{{ currentLoadingMessage }}</p>
+        </div>
       </div>
       <div *ngIf="scrapingError" class="error">
         <p>{{ scrapingError }}</p>
