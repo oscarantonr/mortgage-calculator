@@ -229,13 +229,15 @@
         
         <!-- Resultados de amortización anticipada -->
         <div class="early-repayment-results" *ngIf="showEarlyRepaymentResults">
-          <h3 class="section-title">Comparativa de opciones</h3>
           
           <!-- Opción 1: Reducir plazo -->
           <div class="amortization-option">
             <div class="option-header">
               <h4>Reduciendo plazo ahorras:</h4>
-              <span class="savings">{{ earlyRepaymentResults.reducingTerm.savings | europeanNumber }} €</span>
+            </div>
+            <div class="savings-display">
+              <div class="savings-amount">{{ earlyRepaymentResults.reducingTerm.savings | europeanNumber }} €</div>
+              <div class="savings-percentage-line">{{ earlyRepaymentResults.reducingTerm.savingsPercentage | europeanNumber }}% del total de intereses</div>
             </div>
             
             <div class="option-details">
@@ -271,7 +273,10 @@
           <div class="amortization-option">
             <div class="option-header">
               <h4>Reduciendo cuota ahorras:</h4>
-              <span class="savings">{{ earlyRepaymentResults.reducingPayment.savings | europeanNumber }} €</span>
+            </div>
+            <div class="savings-display">
+              <div class="savings-amount">{{ earlyRepaymentResults.reducingPayment.savings | europeanNumber }} €</div>
+              <div class="savings-percentage-line">{{ earlyRepaymentResults.reducingPayment.savingsPercentage | europeanNumber }}% del total de intereses</div>
             </div>
             
             <div class="option-details">
