@@ -12,8 +12,7 @@
               id="loanAmount" 
               formControlName="loanAmount" 
               class="form-control" 
-              placeholder="Ej: 150.000"
-              appEuropeanNumberInput>
+              placeholder="Ej: 150000,5">
             <span class="input-addon">€</span>
           </div>
           <div class="form-error" *ngIf="mortgageForm.get('loanAmount')?.invalid && mortgageForm.get('loanAmount')?.touched">

@@ -74,18 +74,7 @@ export class EuropeanNumberInputDirective {
       // Al perder el foco, asegurarse de que el formato es correcto
       const formattedValue = this.formatWithThousandSeparator(value);
       this.el.nativeElement.value = formattedValue;
-
-      // No es necesario posicionar el cursor aquí porque el elemento ya no tiene el foco
     }
-  }
-
-  @HostListener('focus')
-  onFocus() {
-    // Si queremos mostrar el valor sin formato al enfocar
-    // const value = this.control.value;
-    // if (value !== null && value !== undefined) {
-    //   this.el.nativeElement.value = value;
-    // }
   }
 
   /**
