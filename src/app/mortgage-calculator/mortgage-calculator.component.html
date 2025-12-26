@@ -95,60 +95,64 @@
 
         <div class="form-group">
           <label for="term">Plazo</label>
-          <div class="term-inputs">
-            <div class="input-group">
-              <!-- Input que cambia según el tipo seleccionado -->
-              <input 
-                *ngIf="mortgageForm.get('termType')?.value !== 'endDate'"
-                type="text" 
-                id="term" 
-                formControlName="term" 
-                class="form-control"
-                [placeholder]="mortgageForm.get('termType')?.value === 'years' ? 'Ej: 30' : 'Ej: 360'"
-                appEuropeanNumberInput>
-              
-              <!-- Input de fecha con formato personalizado -->
-              <div *ngIf="mortgageForm.get('termType')?.value === 'endDate'" class="date-input-container">
+          <div class="term-inputs-row">
+            <div class="col-6">
+              <div class="input-group term-input">
+                <!-- Input que cambia según el tipo seleccionado -->
                 <input 
+                  *ngIf="mortgageForm.get('termType')?.value !== 'endDate'"
                   type="text" 
-                  id="endDateDisplay" 
-                  class="form-control date-display"
-                  [value]="displayDate"
-                  placeholder="dd/mm/yyyy"
-                  (input)="onManualDateInput($event)"
-                  (blur)="onDateBlur($event)">
-                <input 
-                  type="date" 
-                  formControlName="endDate" 
-                  class="date-input-hidden"
-                  (change)="onDatePickerChange($event)">
-                <button 
-                  type="button" 
-                  class="date-picker-btn"
-                  (click)="openDatePicker()"
-                  title="Seleccionar fecha">
-                  📅
-                </button>
+                  id="term" 
+                  formControlName="term" 
+                  class="form-control"
+                  [placeholder]="mortgageForm.get('termType')?.value === 'years' ? 'Ej: 30' : 'Ej: 360'"
+                  appEuropeanNumberInput>
+                
+                <!-- Input de fecha con formato personalizado -->
+                <div *ngIf="mortgageForm.get('termType')?.value === 'endDate'" class="date-input-container">
+                  <input 
+                    type="text" 
+                    id="endDateDisplay" 
+                    class="form-control date-display"
+                    [value]="displayDate"
+                    placeholder="dd/mm/yyyy"
+                    (input)="onManualDateInput($event)"
+                    (blur)="onDateBlur($event)">
+                  <input 
+                    type="date" 
+                    formControlName="endDate" 
+                    class="date-input-hidden"
+                    (change)="onDatePickerChange($event)">
+                  <button 
+                    type="button" 
+                    class="date-picker-btn"
+                    (click)="openDatePicker()"
+                    title="Seleccionar fecha">
+                    📅
+                  </button>
+                </div>
+                
+                <!-- Addon que cambia según el tipo -->
+                <span class="input-addon" *ngIf="mortgageForm.get('termType')?.value === 'years'">años</span>
+                <span class="input-addon" *ngIf="mortgageForm.get('termType')?.value === 'months'">meses</span>
               </div>
-              
-              <!-- Addon que cambia según el tipo -->
-              <span class="input-addon" *ngIf="mortgageForm.get('termType')?.value === 'years'">años</span>
-              <span class="input-addon" *ngIf="mortgageForm.get('termType')?.value === 'months'">meses</span>
             </div>
             
-            <!-- Radio buttons con nueva opción -->
-            <div class="radio-group term-type">
-              <div class="radio-option">
-                <input type="radio" id="term-years" value="years" formControlName="termType">
-                <label for="term-years">Años</label>
-              </div>
-              <div class="radio-option">
-                <input type="radio" id="term-months" value="months" formControlName="termType">
-                <label for="term-months">Meses</label>
-              </div>
-              <div class="radio-option">
-                <input type="radio" id="term-endDate" value="endDate" formControlName="termType">
-                <label for="term-endDate">Fecha fin</label>
+            <div class="col-6">
+              <!-- Radio buttons con nueva opción -->
+              <div class="radio-group term-type">
+                <div class="radio-option">
+                  <input type="radio" id="term-years" value="years" formControlName="termType">
+                  <label for="term-years">Años</label>
+                </div>
+                <div class="radio-option">
+                  <input type="radio" id="term-months" value="months" formControlName="termType">
+                  <label for="term-months">Meses</label>
+                </div>
+                <div class="radio-option">
+                  <input type="radio" id="term-endDate" value="endDate" formControlName="termType">
+                  <label for="term-endDate">Fecha fin</label>
+                </div>
               </div>
             </div>
           </div>
@@ -336,4 +340,12 @@
       </div>
     </div>
   </div>
+
+  <!-- Gráficos de análisis visual -->
+  <app-mortgage-chart 
+    *ngIf="showResults && chartData.length > 0"
+    [amortizationData]="chartData"
+    [earlyRepaymentData]="earlyRepaymentChartData"
+    [monthlyPayment]="monthlyPayment">
+  </app-mortgage-chart>
 </div>

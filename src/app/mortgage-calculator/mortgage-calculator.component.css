@@ -207,10 +207,16 @@ label {
 }
 
 /* Estructura de términos */
-.term-inputs {
+.term-inputs-row {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 15px;
+  align-items: flex-start;
+}
+
+.col-6 {
+  flex: 0 0 calc(50% - 7.5px);
+  max-width: calc(50% - 7.5px);
 }
 
 .term-inputs .input-group {
@@ -627,8 +633,14 @@ tr:hover td {
     flex-direction: column;
   }
   
-  .term-inputs {
+  .term-inputs-row {
+    flex-direction: column;
     gap: 10px;
+  }
+
+  .col-6 {
+    flex: 1 1 auto;
+    max-width: 100%;
   }
   
   .term-type {

@@ -1,5 +1,6 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AmortizationChartData } from '../mortgage-chart/mortgage-chart.component';
 
 @Component({
   selector: 'app-mortgage-calculator',
@@ -16,17 +17,14 @@ export class MortgageCalculatorComponent implements OnInit {
   totalAmount = 0;
   amortizationSchedule: any[] = [];
 
-  // Variable para el input de fecha formateado
   displayDate = '';
 
-  // Variable para controlar cuándo mostrar resultados de amortización anticipada
   showEarlyRepaymentResults = false;
 
-  // Variables para los resultados de amortización anticipada
   earlyRepaymentResults = {
     reducingTerm: {
       savings: 0,
-      savingsPercentage: 0, // Nuevo campo para porcentaje de ahorro
+      savingsPercentage: 0,
       monthlyPayment: 0,
       originalTerm: { years: 0, months: 0 },
       termReduction: { years: 0, months: 0 },
@@ -34,13 +32,16 @@ export class MortgageCalculatorComponent implements OnInit {
     },
     reducingPayment: {
       savings: 0,
-      savingsPercentage: 0, // Nuevo campo para porcentaje de ahorro
+      savingsPercentage: 0,
       term: { years: 0, months: 0 },
       originalPayment: 0,
       paymentReduction: 0,
       newPayment: 0,
     },
   };
+
+  chartData: AmortizationChartData[] = [];
+  earlyRepaymentChartData: AmortizationChartData[] = [];
 
   interestTypes = [
     { value: 'fixed', label: 'Fijo' },
@@ -56,7 +57,7 @@ export class MortgageCalculatorComponent implements OnInit {
   constructor(private fb: FormBuilder) {
     this.mortgageForm = this.fb.group({
       loanAmount: ['150.000', [Validators.required, Validators.min(1)]],
-      earlyRepayment: [''], // Nuevo campo para amortización anticipada (opcional)
+      earlyRepayment: [''],
       interestType: ['fixed', Validators.required],
       interestRate: ['3', [Validators.required, Validators.min(0.1)]],
       differential: ['1', [Validators.required, Validators.min(0.1)]],
@@ -65,7 +66,7 @@ export class MortgageCalculatorComponent implements OnInit {
         [Validators.required, Validators.min(1), Validators.max(480)],
       ],
       termType: ['years', Validators.required],
-      endDate: [''], // Nuevo campo para fecha de finalización
+      endDate: [''],
       paymentFrequency: ['monthly', Validators.required],
     });
   }
@@ -477,6 +478,9 @@ export class MortgageCalculatorComponent implements OnInit {
       this.totalAmount = this.monthlyPayment * payments;
       this.totalInterest = this.totalAmount - principal;
 
+      // Generar datos para los gráficos
+      this.generateChartData(principal, interestRate, payments);
+
       // Calcular opciones de amortización anticipada si hay un valor
       if (data.earlyRepayment > 0) {
         this.calculateEarlyRepaymentOptions(
@@ -487,6 +491,16 @@ export class MortgageCalculatorComponent implements OnInit {
         );
         // Activar la visualización de resultados de amortización anticipada
         this.showEarlyRepaymentResults = true;
+
+        // Generar datos del gráfico para amortización anticipada
+        this.generateEarlyRepaymentChartData(
+          data.earlyRepayment,
+          principal,
+          interestRate,
+          payments
+        );
+      } else {
+        this.earlyRepaymentChartData = [];
       }
 
       this.showResults = true;
@@ -761,5 +775,100 @@ export class MortgageCalculatorComponent implements OnInit {
         newPayment: 0,
       },
     };
+  }
+
+  /**
+   * Genera los datos completos para los gráficos
+   */
+  generateChartData(
+    principal: number,
+    monthlyRate: number,
+    totalPayments: number
+  ): void {
+    let balance = principal;
+    let cumulativeInterest = 0;
+    let cumulativePrincipal = 0;
+    this.chartData = [];
+
+    for (let month = 1; month <= totalPayments; month++) {
+      // Calcular interés del mes
+      const monthlyInterest = balance * monthlyRate;
+
+      // Calcular capital del mes
+      const monthlyPrincipal = this.monthlyPayment - monthlyInterest;
+
+      // Actualizar saldo
+      balance -= monthlyPrincipal;
+
+      // Actualizar acumulados
+      cumulativeInterest += monthlyInterest;
+      cumulativePrincipal += monthlyPrincipal;
+
+      // Guardar datos del mes
+      this.chartData.push({
+        month: month,
+        year: Math.ceil(month / 12),
+        remainingBalance: Math.max(0, balance),
+        monthlyInterest: monthlyInterest,
+        monthlyPrincipal: monthlyPrincipal,
+        cumulativeInterest: cumulativeInterest,
+        cumulativePrincipal: cumulativePrincipal,
+        monthlyPayment: this.monthlyPayment,
+      });
+
+      // Si el saldo es 0 o negativo, terminar
+      if (balance <= 0) break;
+    }
+  }
+
+  /**
+   * Genera los datos del gráfico para amortización anticipada (reduciendo plazo)
+   */
+  generateEarlyRepaymentChartData(
+    earlyRepayment: number,
+    principal: number,
+    monthlyRate: number,
+    totalPayments: number
+  ): void {
+    // Simular amortización con pago anticipado reduciendo plazo
+    let balance = principal - earlyRepayment; // Aplicar pago anticipado al inicio
+    let cumulativeInterest = 0;
+    let cumulativePrincipal = earlyRepayment; // Ya hemos pagado el pago anticipado
+    this.earlyRepaymentChartData = [];
+
+    // Recalcular la cuota con el nuevo capital
+    const newMonthlyPayment =
+      (balance * monthlyRate * Math.pow(1 + monthlyRate, totalPayments)) /
+      (Math.pow(1 + monthlyRate, totalPayments) - 1);
+
+    for (let month = 1; month <= totalPayments; month++) {
+      // Calcular interés del mes
+      const monthlyInterest = balance * monthlyRate;
+
+      // Calcular capital del mes
+      const monthlyPrincipal = newMonthlyPayment - monthlyInterest;
+
+      // Actualizar saldo
+      balance -= monthlyPrincipal;
+
+      // Actualizar acumulados
+      cumulativeInterest += monthlyInterest;
+      cumulativePrincipal += monthlyPrincipal;
+
+      // Guardar datos del mes
+      this.earlyRepaymentChartData.push({
+        month: month,
+        year: Math.ceil(month / 12),
+        remainingBalance: Math.max(0, balance),
+        monthlyInterest: monthlyInterest,
+        monthlyPrincipal: monthlyPrincipal,
+        cumulativeInterest: cumulativeInterest,
+        cumulativePrincipal: cumulativePrincipal,
+        monthlyPayment: newMonthlyPayment,
+      });
+
+      // Si el saldo es 0 o negativo, terminar
+      if (balance <= 0) break;
+    }
   }
 }

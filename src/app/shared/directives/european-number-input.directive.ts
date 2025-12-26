@@ -1,10 +1,6 @@
 import { Directive, ElementRef, HostListener } from '@angular/core';
 import { NgControl } from '@angular/forms';
 
-/**
- * Directiva para formatear números en formato europeo en inputs
- * Muestra puntos como separadores de miles y permite sólo números
- */
 @Directive({
   selector: '[appEuropeanNumberInput]',
 })
@@ -13,30 +9,22 @@ export class EuropeanNumberInputDirective {
 
   @HostListener('input', ['$event'])
   onInput(event: Event) {
-    // Obtener el input element
     const input = this.el.nativeElement as HTMLInputElement;
 
-    // Guardar la posición actual del cursor y el valor actual
     const cursorPos = input.selectionStart || 0;
     const originalValue = input.value;
 
-    // Eliminar todos los caracteres no numéricos excepto punto y coma
     let numericValue = originalValue.replace(/[^\d.,]/g, '');
 
-    // Eliminar todos los separadores de miles (puntos) para trabajar con el número puro
-    // pero conservando las comas decimales
     const strippedValue = numericValue.replace(/\./g, '');
 
-    // Contar cuántos dígitos (sin separadores) hay antes de la posición del cursor
     const valueBeforeCursor = originalValue.substring(0, cursorPos);
     const digitsBeforeCursor = valueBeforeCursor.replace(/\./g, '').length;
 
-    // Convertir a número para el modelo (normalizado con punto decimal)
     const normalizedValue = strippedValue.replace(',', '.');
     const numValue = normalizedValue ? parseFloat(normalizedValue) : null;
 
     if (numValue !== null && !isNaN(numValue)) {
-      // Actualizar el valor del control
       this.control.control?.setValue(numValue, { emitEvent: false });
 
       // Formatear el valor para mostrar con separadores de miles

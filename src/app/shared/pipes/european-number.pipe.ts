@@ -1,10 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
-/**
- * Pipe para formatear números en formato europeo
- * Utiliza punto como separador de miles y coma como separador decimal
- * Ejemplo: 1234.56 -> 1.234,56
- */
 @Pipe({
   name: 'europeanNumber',
 })
@@ -17,15 +12,12 @@ export class EuropeanNumberPipe implements PipeTransform {
       return '';
     }
 
-    // Convertir a número si es string
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
 
-    // Evitar NaN
     if (isNaN(numValue)) {
       return '';
     }
 
-    // Formatear manualmente para garantizar separadores en números de 4 o más dígitos
     return this.formatWithThousandSeparator(numValue, decimals);
   }
 
